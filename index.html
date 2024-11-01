@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Neon Light Customization</title>
+    <style>
+        #preview {
+            max-width: 300px;
+            display: block;
+            margin-top: 10px;
+        }
+        #svg-container {
+            width: 500px;
+            height: 500px;
+            border: 1px solid #ccc;
+            margin-top: 20px;
+        }
+        .neon-path {
+            stroke-width: 2;
+            stroke-linecap: round;
+            cursor: pointer;
+        }
+        #output-image {
+            margin-top: 20px;
+            max-width: 500px;
+            display: none; /* 隐藏直到显示生成的图像 */
+        }
+    </style>
+</head>
+<body>
+
+<h2>Upload Your Image and Customize Neon Sign</h2>
+
+<!-- 上传图片 -->
+<input type="file" id="upload" accept="image/*"><br>
+<img id="preview" alt="Preview Image"><br>
+
+<!-- 生成的SVG线条将显示在这里 -->
+<div id="svg-container"></div>
+
+<!-- 用于选择颜色 -->
+<label for="color-picker">Choose a color:</label>
+<input type="color" id="color-picker" value="#ff0000"><br>
+
+<!-- 提交自定义的颜色 -->
+<button id="submit-colors">Submit Colors</button><br>
+
+<!-- 显示生成的最终图像 -->
+<img id="output-image" alt="Generated Neon Image">
+
+<script>
+    const uploadInput = document.getElementById('upload');
+    const preview = document.getElementById('preview');
+    const svgContainer = document.getElementById('svg-container');
+    const colorPicker = document.getElementById('color-picker');
+    const outputImage = document.getElementById('output-image');
+
+    let contours = [];  // 用来保存后端返回的轮廓数据
+
+    // 监听文件上传并显示预览
+    uploadInput.addEventListener('change', function(event) {
+        const file = event.target.files[0];
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            preview.src = e.target.result;
+        };
+        reader.readAsDataURL(file);
+
+        // 提交图片到后端处理并生成线条轮廓
+        const formData = new FormData();
+        formData.append('image', file);
+
+        fetch('/process-image', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            // 将后端返回的SVG路径显示在页面上
+            svgContainer.innerHTML = data.svg;
+            contours = data.contours;  // 保存轮廓数据以备后续使用
+            attachClickEventsToPaths();
+        });
+    });
+
+    // 让用户可以点击线条并选择颜色
+    function attachClickEventsToPaths() {
+        const paths = document.querySelectorAll('.neon-path');
+        paths.forEach(path => {
+            path.addEventListener('click', function() {
+                const selectedColor = colorPicker.value;
+                path.setAttribute('stroke', selectedColor);
+            });
+        });
+    }
+
+    // 提交用户选择的颜色
+    document.getElementById('submit-colors').addEventListener('click', function() {
+        const paths = document.querySelectorAll('.neon-path');
+        const colorData = [];
+        paths.forEach((path, index) => {
+            const color = path.getAttribute('stroke');
+            colorData.push({ pathIndex: index, color });
+        });
+
+        // 提交颜色数据和轮廓数据到后端
+        fetch('/submit-colors', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                colorData: colorData,
+                contours: contours  // 将轮廓数据一并发送到后端
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // 成功生成图像，显示最终的霓虹灯效果图
+                outputImage.src = `/output/${data.output_image}`;  // 假设后端返回图像的路径
+                outputImage.style.display = 'block';  // 显示生成的图像
+            } else {
+                alert('Failed to generate neon image.');
+            }
+        });
+    });
+</script>
+
+</body>
+</html>
