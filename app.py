@@ -66,8 +66,48 @@ def generate_final_neon_image(image_path, contours, color_data):
     # 添加霓虹灯发光效果
     neon_image_with_effect = add_neon_effect(neon_image)
     
-    # 保存生成的图像
+    # 保存生成的图像 
     output_path = 'output/neon_final_image.jpg'
     cv2.imwrite(output_path, neon_image_with_effect)
     
     return output_path  
+from flask import Flask, request, jsonify
+import cv2
+import numpy as np
+import os
+
+app = Flask(__name__)
+
+# 上传图片并提取线条轮廓
+@app.route('/process-image', methods=['POST'])
+def process_image():
+    file = request.files['image']
+    image_path = os.path.join('uploads', file.filename)
+    file.save(image_path)
+
+    contours = extract_contours(image_path)
+    
+    # 将轮廓转换为 SVG 路径并返回给前端
+    svg_paths = []
+    for contour in contours:
+        path = "M " + " ".join([f"{point[0][0]} {point[0][1]}" for point in contour])
+        svg_paths.append(f'<path class="neon-path" d="{path}" stroke="#000" fill="none"/>')
+
+    svg_content = f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 500">{"".join(svg_paths)}</svg>'
+    
+    return jsonify({'svg': svg_content, 'contours': contours})
+
+# 提交用户选择的颜色并生成最终图像
+@app.route('/submit-colors', methods=['POST'])
+def submit_colors():
+    color_data = request.json  # 从前端接收到的颜色数据
+    image_path = 'path_to_uploaded_image'  # 之前上传的图像路径
+    contours = extract_contours(image_path)
+
+    # 生成最终的霓虹灯图像
+    output_path = generate_final_neon_image(image_path, contours, color_data)
+
+    return jsonify({'success': True, 'output_image': output_path})
+
+if __name__ == '__main__':
+    app.run(debug=True)
