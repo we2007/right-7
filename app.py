@@ -48,4 +48,26 @@ def apply_colors_to_contours(image_path, contours, colors):
         cv2.drawContours(neon_image, [contour], -1, bgr_color, thickness=5)
 
     return neon_image
+   def add_neon_effect(image):
+    # 创建发光效果：对图像进行多次模糊叠加
+    for _ in range(3):
+        blurred = cv2.GaussianBlur(image, (15, 15), 0)
+        image = cv2.addWeighted(image, 0.6, blurred, 0.4, 0)
     
+    return image      import os
+
+def generate_final_neon_image(image_path, contours, color_data):
+    # 提取轮廓并转换颜色数据为BGR格式
+    colors = [color['color'] for color in color_data]
+    
+    # 应用颜色到轮廓
+    neon_image = apply_colors_to_contours(image_path, contours, colors)
+    
+    # 添加霓虹灯发光效果
+    neon_image_with_effect = add_neon_effect(neon_image)
+    
+    # 保存生成的图像
+    output_path = 'output/neon_final_image.jpg'
+    cv2.imwrite(output_path, neon_image_with_effect)
+    
+    return output_path  
